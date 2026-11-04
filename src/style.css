@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* 自定义选中文字颜色 */
+::selection {
+  background-color: #D4A99A;
+  color: #fff;
+}
+
+/* 隐藏滚动条但保留滚动能力 (微信内置浏览器) */
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
