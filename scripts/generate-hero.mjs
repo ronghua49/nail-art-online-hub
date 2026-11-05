@@ -52,7 +52,6 @@ const res = await fetch('https://api.siliconflow.cn/v1/images/generations', {
   headers: {
     Authorization: `Bearer ${API_KEY}`,
     'Content-Type': 'application/json',
-    // 关键：关闭「AI 生成」显式水印
     'X-Enable-Watermark': '0',
   },
   body: JSON.stringify(body),
