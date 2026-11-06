@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 
 // ==================== 数据定义（方便后期替换） ====================
 
@@ -127,11 +127,53 @@ function filterGallery(cat) {
 }
 
 // 按分类过滤后的作品集
-import { computed } from 'vue'
 const filteredGallery = computed(() => {
   if (activeCategory.value === '全部') return galleryImages.value
   return galleryImages.value.filter((img) => img.category === activeCategory.value)
 })
+
+// ==================== 作品放大灯箱 Lightbox ====================
+
+const showLightbox = ref(false)
+const activeIndex = ref(0)
+const lightboxImage = computed(() => filteredGallery.value[activeIndex.value])
+
+function openLightbox(index) {
+  const len = filteredGallery.value.length
+  if (len === 0) return
+  activeIndex.value = ((index % len) + len) % len
+  showLightbox.value = true
+  document.body.style.overflow = 'hidden'
+}
+
+function closeLightbox() {
+  showLightbox.value = false
+  document.body.style.overflow = ''
+}
+
+function onLightboxOverlayClick(e) {
+  if (e.target === e.currentTarget) closeLightbox()
+}
+
+function prevImage() {
+  const len = filteredGallery.value.length
+  if (len > 1) activeIndex.value = (activeIndex.value - 1 + len) % len
+}
+
+function nextImage() {
+  const len = filteredGallery.value.length
+  if (len > 1) activeIndex.value = (activeIndex.value + 1) % len
+}
+
+function onKeydown(e) {
+  if (!showLightbox.value) return
+  if (e.key === 'Escape') closeLightbox()
+  else if (e.key === 'ArrowLeft') prevImage()
+  else if (e.key === 'ArrowRight') nextImage()
+}
+
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
@@ -213,9 +255,10 @@ const filteredGallery = computed(() => {
       <div class="columns-2 gap-4 space-y-4">
         <!-- 注意：columns-2 下需用 break-inside-avoid 防止卡片被截断 -->
         <div
-          v-for="img in filteredGallery"
+          v-for="(img, index) in filteredGallery"
           :key="img.id"
           class="break-inside-avoid mb-4 rounded-2xl overflow-hidden relative group cursor-pointer"
+          @click="openLightbox(index)"
         >
           <img
             :src="img.src"
@@ -484,6 +527,71 @@ const filteredGallery = computed(() => {
       </div>
     </Transition>
   </Teleport>
+
+  <!-- ==================== 9. 作品放大灯箱 Lightbox ==================== -->
+  <Teleport to="body">
+    <Transition name="lightbox">
+      <div
+        v-if="showLightbox"
+        class="fixed inset-0 z-[60] flex items-center justify-center"
+        @click="onLightboxOverlayClick"
+      >
+        <!-- 遮罩 -->
+        <div class="absolute inset-0 bg-black/85 backdrop-blur-sm"></div>
+
+        <!-- 关闭按钮 -->
+        <button
+          @click="closeLightbox"
+          class="absolute top-4 right-4 z-30 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+          aria-label="关闭大图"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
+        <!-- 上一张 -->
+        <button
+          v-if="filteredGallery.length > 1"
+          @click.stop="prevImage"
+          class="absolute left-3 z-30 w-9 h-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+          aria-label="查看上一张"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+
+        <!-- 下一张 -->
+        <button
+          v-if="filteredGallery.length > 1"
+          @click.stop="nextImage"
+          class="absolute right-3 z-30 w-9 h-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+          aria-label="查看下一张"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+
+        <!-- 大图内容 -->
+        <div class="relative z-10 w-full max-w-md px-5 flex flex-col items-center">
+          <img
+            v-if="lightboxImage"
+            :src="lightboxImage.src"
+            :alt="lightboxImage.category"
+            class="max-h-[78vh] max-w-full rounded-2xl shadow-2xl object-contain bg-white/5"
+          />
+          <div class="mt-4 flex items-center gap-3">
+            <span v-if="lightboxImage" class="bg-white/15 backdrop-blur-sm px-3 py-1 rounded-full text-white/90 text-xs">
+              {{ lightboxImage.category }}
+            </span>
+            <span class="text-white/60 text-xs">{{ activeIndex + 1 }} / {{ filteredGallery.length }}</span>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -506,6 +614,28 @@ const filteredGallery = computed(() => {
 }
 .modal-leave-to > div:last-child {
   transform: scale(0.92) translateY(20px);
+  opacity: 0;
+}
+
+/* 灯箱 Lightbox 过渡动画 */
+.lightbox-enter-active,
+.lightbox-leave-active {
+  transition: opacity 0.25s ease;
+}
+.lightbox-enter-active > div:last-child,
+.lightbox-leave-active > div:last-child {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
+}
+.lightbox-enter-from,
+.lightbox-leave-to {
+  opacity: 0;
+}
+.lightbox-enter-from > div:last-child {
+  transform: scale(0.95);
+  opacity: 0;
+}
+.lightbox-leave-to > div:last-child {
+  transform: scale(0.95);
   opacity: 0;
 }
 </style>

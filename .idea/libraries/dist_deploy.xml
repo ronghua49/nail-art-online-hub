@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="dist-deploy">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/dist-deploy.zip!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
